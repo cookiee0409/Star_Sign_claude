@@ -450,7 +450,7 @@ class Game {
 
     openDiscovery(con, gained, { firstBonus: firstThis });
 
-    this.pendingLyraAnim = "discovery";
+    this.pendingLyraAnim = "discover";
     if (firstEver) {
       setFlag("firstDiscovery", true);
       this.pendingDialogue = SCRIPT.firstDiscovery;
