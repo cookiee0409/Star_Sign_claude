@@ -12,8 +12,9 @@ import {
 } from "./state/gameState.js";
 import { CONSTELLATIONS } from "./data/constellations.js";
 import { SURVEYS, telescopeAppearanceStage } from "./data/upgrades.js";
-import { initScene, drawAdventure, triggerLyraAnim, setLyraFrozen } from "./render/pixelArt.js";
+import { initScene, drawAdventure } from "./render/pixelArt.js";
 import { preloadAssets } from "./assets/loader.js";
+import { CharacterView } from "./ui/character.js";
 import { runDialogue } from "./ui/dialogue.js";
 import { SCRIPT } from "./data/script.js";
 import { EnergyAbsorb, Meteor, drawLensFrame } from "./render/effects.js";
@@ -53,9 +54,9 @@ class Game {
     this.saveViewTimer = 0;
 
     this.spaceRefs = {};
-    this.lyraMood = "smiling";
 
     preloadAssets();
+    this.character = new CharacterView();
     this.resize();
     window.addEventListener("resize", () => this.resize());
     const unlock = () => { unlockAudio(); window.removeEventListener("pointerdown", unlock); };
@@ -82,6 +83,11 @@ class Game {
     this.aladinDiv.classList.toggle("hidden", !space);
     this.fx.classList.toggle("hidden", !space);
     this.labelLayer.classList.toggle("hidden", !space);
+    // 캐릭터는 어드벤처 화면에서만 표시
+    if (this.character) {
+      if (this.screen === "adventure") this.character.show();
+      else this.character.hide();
+    }
   }
 
   /* ============================================================ 루프 */
@@ -104,7 +110,7 @@ class Game {
       if (this.skyReady) this._updateLabels();
     } else {
       const stage = telescopeAppearanceStage(getStats().telescopeLevel);
-      drawAdventure(this.ctx, this.w, this.h, t, stage, this.lyraMood);
+      drawAdventure(this.ctx, this.w, this.h, t, stage);
     }
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -140,6 +146,7 @@ class Game {
     await fadeTransition(() => { this.screen = "adventure"; this._showLayers(); this._buildAdventureUI(); });
     showHUD(true);
     this._refreshHUD();
+    this.character.setState("idle");
     syncAmbient();
     if (isNew && !getState().flags.seenIntro) this._playIntro();
   }
@@ -153,7 +160,7 @@ class Game {
   _buildAdventureUI() {
     clearUI();
     mount(el(".action-bar", {}, [
-      el(".btn.btn-primary", { text: "🔭 망원경 보기", onclick: () => { Sfx.click(); this._enterSpace(); } }),
+      el(".btn.btn-primary", { text: "🔭 망원경 보기", onclick: () => { Sfx.click(); this.character.setState("observe"); this._enterSpace(); } }),
       el(".btn", { text: "⚙ 업그레이드", onclick: () => { Sfx.click(); openUpgrade(() => this._refreshHUD()); } }),
       el(".btn", { text: "✦ 컬렉션", onclick: () => { Sfx.click(); openCollection(); } }),
       el(".btn.btn-ghost", { text: "메뉴", onclick: () => { Sfx.click(); this._toMenu(); } }),
@@ -166,22 +173,23 @@ class Game {
 
   _playIntro() { this._runScript(SCRIPT.intro, () => setFlag("seenIntro", true)); }
 
-  // 표정(초상화) → 배경 캐릭터의 절차적 얼굴 mood 매핑
-  _exprToMood(expr) {
-    if (expr === "surprised") return "curious";
-    if (expr === "serious" || expr === "frowning" || expr === "sad") return "thinking";
-    return "smiling";
-  }
-
   _runScript(lines, onDone) {
-    setLyraFrozen(true);
     runDialogue(lines, {
       onLine: (line) => {
-        this.lyraMood = line.expr ? this._exprToMood(line.expr) : "smiling";
-        if (line.expr === "surprised") triggerLyraAnim("surprise");
+        // 대사 표정에 맞춰 캐릭터 상태 전환(놀람만 별도 포즈)
+        this.character.setState(line.expr === "surprised" ? "surprise" : "idle");
       },
-      onDone: () => { setLyraFrozen(false); this.lyraMood = null; onDone && onDone(); },
+      onDone: () => { this.character.setState("idle"); onDone && onDone(); },
     });
+  }
+
+  /** happy 포즈를 잠깐 보여준 뒤 idle로 복귀 */
+  _lyraHappy(ms = 2600) {
+    this.character.setState("happy");
+    clearTimeout(this._happyT);
+    this._happyT = setTimeout(() => {
+      if (this.screen === "adventure") this.character.setState("idle");
+    }, ms);
   }
 
   /* ============================================================ 우주(실제 하늘) */
@@ -308,7 +316,8 @@ class Game {
     this.currentHintId = null;
     await fadeTransition(() => { this.screen = "adventure"; this._showLayers(); this._buildAdventureUI(); });
     this._refreshHUD();
-    if (this.pendingLyraAnim) { triggerLyraAnim(this.pendingLyraAnim); this.pendingLyraAnim = null; }
+    if (this.pendingHappy) { this.pendingHappy = false; this._lyraHappy(); }
+    else this.character.setState("idle");
     if (this.pendingDialogue) { const d = this.pendingDialogue; this.pendingDialogue = null; this._runScript(d); }
   }
 
@@ -450,7 +459,7 @@ class Game {
 
     openDiscovery(con, gained, { firstBonus: firstThis });
 
-    this.pendingLyraAnim = "discover";
+    this.pendingHappy = true;
     if (firstEver) {
       setFlag("firstDiscovery", true);
       this.pendingDialogue = SCRIPT.firstDiscovery;

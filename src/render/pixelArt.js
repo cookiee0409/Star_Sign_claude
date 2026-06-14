@@ -7,23 +7,11 @@
    - assets/ 에 그림(PNG)이 있으면 자동 교체(loader), 없으면 절차적 렌더링.
    ============================================================ */
 
-import { getImage, drawCover, getSprite } from "../assets/loader.js";
-import { CharacterController, drawSpriteFrame } from "./sprites.js";
+import { getImage, drawCover } from "../assets/loader.js";
 
 function px(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x | 0, y | 0, Math.ceil(w), Math.ceil(h));
-}
-
-/* 배경 속 캐릭터(Lyra) 컨트롤러 — 스스로 돌아다님 */
-export const lyraCtl = new CharacterController();
-let lyraLastT = 0;
-export function triggerLyraAnim(name) { lyraCtl.play(name); }
-export function setLyraFrozen(b) { lyraCtl.frozen = b; }
-function moodForClip(clip) {
-  if (clip === "observe") return "thinking";
-  if (clip === "surprise") return "curious";
-  return "smiling";
 }
 
 /* ---------- 캐시되는 배경 요소 ---------- */
@@ -444,25 +432,10 @@ function drawSceneProps(ctx, w, h, t, stage) {
   drawTelescope(ctx, w * 0.52, baseY - 2, t, stage);
 }
 
-// 배경 속 Lyra — 스프라이트 에셋이 있으면 애니메이션, 없으면 절차적
-function drawLyraWorld(ctx, w, h, t, moodOverride) {
-  const groundY = h * 0.84 + 24;
-  const cx = lyraCtl.x * w;
-  const targetH = h * 0.52;
-  const sprite = lyraCtl.sprite();
-  if (sprite) {
-    drawSpriteFrame(ctx, sprite, lyraCtl.frameIndex(), cx, groundY, targetH, lyraCtl.facing < 0);
-  } else {
-    const mood = moodOverride || moodForClip(lyraCtl.clip);
-    drawLyra(ctx, cx, groundY, t, mood, lyraCtl.facing, lyraCtl.clip === "walk");
-  }
-}
-
-export function drawAdventure(ctx, w, h, time, stage, moodOverride = null) {
+// 캐릭터(Lyra)는 더 이상 캔버스에 그리지 않는다 — DOM 레이어(ui/character.js)에서
+// 정지 PNG + CSS 모션으로 표시한다. 여기서는 배경/소품/파티클만 그린다.
+export function drawAdventure(ctx, w, h, time, stage) {
   const t = time / 1000;
-  const dt = Math.min(0.05, (time - lyraLastT) / 1000);
-  lyraLastT = time;
-  lyraCtl.update(dt);
 
   const bg = getImage("bgHill");
   if (bg) {
@@ -478,13 +451,25 @@ export function drawAdventure(ctx, w, h, time, stage, moodOverride = null) {
     drawSceneProps(ctx, w, h, t, stage);
   }
 
-  drawLyraWorld(ctx, w, h, t, moodOverride);
   drawFireflies(ctx, w, h, t);
 
   // 비네트
   const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.32, w / 2, h / 2, h * 0.78);
   v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,0.5)");
   ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+}
+
+/** 캐릭터 PNG가 없을 때의 절차적 폴백 포즈 (상태별 mood) */
+export function drawLyraPose(ctx, w, h, state) {
+  ctx.clearRect(0, 0, w, h);
+  const mood = state === "surprise" ? "curious" : state === "observe" ? "thinking" : "smiling";
+  const s = Math.min(w / 74, h / 120);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.translate(w / 2, h * 0.97);
+  ctx.scale(s, s);
+  drawLyra(ctx, 0, 0, 0, mood, 1, false);
+  ctx.restore();
 }
 
 /* ---------- 대화창 초상화 (절차적 폴백) ---------- */

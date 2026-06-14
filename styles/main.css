@@ -76,6 +76,116 @@ html, body {
   z-index: 5;
 }
 
+/* ============================================================
+   캐릭터(Lyra) — 정지 PNG + CSS 모션
+   ============================================================ */
+#char-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 4;
+}
+.lyra-char {
+  position: absolute;
+  bottom: 13%;
+  left: 36%;
+  transform: translateX(-50%);
+  height: 44vh;
+  width: auto;
+  pointer-events: none;
+  will-change: transform;
+}
+.lyra-visual {
+  position: relative;
+  height: 100%;
+  animation: lyra-float 3.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.lyra-char.flip .lyra-visual { animation: lyra-float-flip 3.4s ease-in-out infinite; }
+.lyra-img, .lyra-fallback {
+  height: 100%;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 7px 7px rgba(0,0,0,0.45));
+}
+.lyra-fallback { image-rendering: pixelated; }
+
+.lyra-shadow {
+  position: absolute;
+  bottom: 1%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46%;
+  height: 14px;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.5), rgba(0,0,0,0));
+  filter: blur(2px);
+  animation: lyra-shadow 3.4s ease-in-out infinite;
+}
+
+/* 가슴 별 glow */
+.lyra-chest-glow {
+  position: absolute;
+  left: 50%; top: 51%;
+  width: 26%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,236,150,0.9) 0%, rgba(255,210,110,0.4) 35%, rgba(255,210,110,0) 70%);
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: chest-pulse 2.4s ease-in-out infinite;
+}
+.lyra-chest-glow.flash { animation: chest-flash 1.2s ease-out; }
+
+/* 망원경 렌즈 glow (observe 상태) */
+.lyra-lens-glow {
+  position: absolute;
+  left: 64%; top: 24%;
+  width: 22%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(220,245,255,0.95) 0%, rgba(143,211,255,0.5) 38%, rgba(143,211,255,0) 72%);
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+  mix-blend-mode: screen;
+  display: none;
+  animation: lens-pulse 1.5s ease-in-out infinite;
+}
+.lyra-char.flip .lyra-lens-glow { left: 36%; }
+
+/* 별가루 파티클 */
+.lyra-dust {
+  position: absolute;
+  width: 7px; height: 7px;
+  background: radial-gradient(circle, #fff3c0 0%, #ffd76a 50%, rgba(255,215,106,0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: dust-rise 3s ease-out forwards;
+}
+.lyra-dust.img { background-size: contain; background-repeat: no-repeat; }
+
+/* 별에너지 흡수 orb */
+.lyra-orb {
+  position: absolute;
+  width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  background: radial-gradient(circle, #ffffff 0%, #8fd3ff 45%, rgba(143,211,255,0) 72%);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(143,211,255,0.8);
+  background-size: contain; background-repeat: no-repeat;
+  transition: left 1.05s ease-in, top 1.05s ease-in, opacity 1.05s ease-in, transform 1.05s ease-in;
+  pointer-events: none;
+}
+
+.lyra-char.pop .lyra-visual { animation: lyra-pop 0.55s ease-out, lyra-float 3.4s ease-in-out 0.55s infinite; }
+
+@keyframes lyra-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes lyra-float-flip { 0%,100% { transform: scaleX(-1) translateY(0); } 50% { transform: scaleX(-1) translateY(-6px); } }
+@keyframes lyra-shadow { 0%,100% { transform: translateX(-50%) scaleX(1); opacity: 0.9; } 50% { transform: translateX(-50%) scaleX(0.88); opacity: 0.7; } }
+@keyframes chest-pulse { 0%,100% { opacity: 0.55; transform: translate(-50%,-50%) scale(0.92); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.08); } }
+@keyframes chest-flash { 0% { opacity: 1; transform: translate(-50%,-50%) scale(2.2); } 100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); } }
+@keyframes lens-pulse { 0%,100% { opacity: 0.5; transform: translate(-50%,-50%) scale(0.85); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.15); } }
+@keyframes dust-rise { 0% { opacity: 0; transform: translate(0,0) scale(0.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(var(--dx,0), -90px) scale(1); } }
+@keyframes lyra-pop { 0% { transform: scale(1); } 30% { transform: scale(1.12, 0.94); } 60% { transform: scale(0.97, 1.05); } 100% { transform: scale(1); } }
+
 /* 별자리 이름 라벨 레이어 */
 #label-layer {
   position: absolute;
