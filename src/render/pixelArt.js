@@ -7,11 +7,23 @@
    - assets/ 에 그림(PNG)이 있으면 자동 교체(loader), 없으면 절차적 렌더링.
    ============================================================ */
 
-import { getImage, drawCover } from "../assets/loader.js";
+import { getImage, drawCover, getSprite } from "../assets/loader.js";
+import { CharacterController, drawSpriteFrame } from "./sprites.js";
 
 function px(ctx, x, y, w, h, color) {
   ctx.fillStyle = color;
   ctx.fillRect(x | 0, y | 0, Math.ceil(w), Math.ceil(h));
+}
+
+/* 배경 속 캐릭터(Lyra) 컨트롤러 — 스스로 돌아다님 */
+export const lyraCtl = new CharacterController();
+let lyraLastT = 0;
+export function triggerLyraAnim(name) { lyraCtl.play(name); }
+export function setLyraFrozen(b) { lyraCtl.frozen = b; }
+function moodForClip(clip) {
+  if (clip === "observe") return "thinking";
+  if (clip === "surprise") return "curious";
+  return "smiling";
 }
 
 /* ---------- 캐시되는 배경 요소 ---------- */
@@ -299,9 +311,11 @@ function drawTelescope(ctx, x, y, t, stage) {
 
 /* ---------- 주인공 Lyra ---------- */
 // (cx, fy) = 발끝(아래 중앙). mood: smiling|curious|thinking|sleeping
-function drawLyra(ctx, cx, fy, t, mood = "smiling") {
-  const bob = Math.sin(t * 1.6) * 1.4;
+function drawLyra(ctx, cx, fy, t, mood = "smiling", facing = 1, walking = false) {
+  const bob = walking ? Math.abs(Math.sin(t * 9)) * 2.2 : Math.sin(t * 1.6) * 1.4;
   fy += bob;
+  ctx.save();
+  if (facing < 0) { ctx.translate(cx, 0); ctx.scale(-1, 1); ctx.translate(-cx, 0); }
 
   const hair = "#cdd0ee", hairHi = "#e8e8fc", hairSh = "#a7a8d0";
   const skin = "#f3d2b8", skinSh = "#dcae93";
@@ -398,6 +412,7 @@ function drawLyra(ctx, cx, fy, t, mood = "smiling") {
     ctx.fillStyle = g; ctx.fillRect(hx - 2, hy - 20, 28, 28);
     star4(ctx, hx + 12, hy - 6, 4.5, "rgba(255,240,180,0.95)");
   }
+  ctx.restore();
 }
 
 function drawFace(ctx, cx, fy, mood, t) {
@@ -420,55 +435,172 @@ function drawFace(ctx, cx, fy, mood, t) {
   }
 }
 
-/* ---------- 전경 통합 ---------- */
-function drawForeground(ctx, w, h, t, stage, mood) {
+/* ---------- 전경 ---------- */
+function drawSceneProps(ctx, w, h, t, stage) {
   const baseY = h * 0.84;
   drawTent(ctx, w * 0.8, baseY - 6);
   drawMat(ctx, w * 0.4, baseY + 18);
   drawLantern(ctx, w * 0.6, baseY + 16, t);
   drawTelescope(ctx, w * 0.52, baseY - 2, t, stage);
-  drawLyra(ctx, w * 0.36, baseY + 24, t, mood);
 }
 
-let lastT = 0;
-export function drawAdventure(ctx, w, h, time, stage, mood = "smiling") {
+// 배경 속 Lyra — 스프라이트 에셋이 있으면 애니메이션, 없으면 절차적
+function drawLyraWorld(ctx, w, h, t, moodOverride) {
+  const groundY = h * 0.84 + 24;
+  const cx = lyraCtl.x * w;
+  const targetH = h * 0.42;
+  const sprite = lyraCtl.sprite();
+  if (sprite) {
+    drawSpriteFrame(ctx, sprite, lyraCtl.frameIndex(), cx, groundY, targetH, lyraCtl.facing < 0);
+  } else {
+    const mood = moodOverride || moodForClip(lyraCtl.clip);
+    drawLyra(ctx, cx, groundY, t, mood, lyraCtl.facing, lyraCtl.clip === "walk");
+  }
+}
+
+export function drawAdventure(ctx, w, h, time, stage, moodOverride = null) {
   const t = time / 1000;
-  lastT = time;
+  const dt = Math.min(0.05, (time - lyraLastT) / 1000);
+  lyraLastT = time;
+  lyraCtl.update(dt);
 
   const bg = getImage("bgHill");
   if (bg) {
     ctx.fillStyle = "#0a0e2e"; ctx.fillRect(0, 0, w, h);
     drawCover(ctx, bg, w, h);
     drawSparkles(ctx, w, h, t);
-    drawFireflies(ctx, w, h, t);
   } else {
     drawSky(ctx, w, h, t);
     drawMoon(ctx, w, h);
     drawHills(ctx, w, h, t);
     drawGrass(ctx, w, h, t);
     drawSparkles(ctx, w, h, t);
+    drawSceneProps(ctx, w, h, t, stage);
   }
 
-  // Lyra 스프라이트 이미지가 있으면 사용
-  const lyraImg = getImage("lyra");
-  if (lyraImg && !bg) {
-    drawTent(ctx, w * 0.8, h * 0.84 - 6);
-    drawTelescope(ctx, w * 0.52, h * 0.84 - 2, t, stage);
-    const lh = h * 0.5, lw = lh * (lyraImg.naturalWidth / lyraImg.naturalHeight);
-    ctx.drawImage(lyraImg, w * 0.36 - lw / 2, h * 0.84 - lh + 24, lw, lh);
-  } else if (lyraImg && bg) {
-    const lh = h * 0.5, lw = lh * (lyraImg.naturalWidth / lyraImg.naturalHeight);
-    ctx.drawImage(lyraImg, w * 0.36 - lw / 2, h * 0.84 - lh + 24, lw, lh);
-  } else {
-    drawForeground(ctx, w, h, t, stage, mood);
-  }
-
-  if (!bg) drawFireflies(ctx, w, h, t);
+  drawLyraWorld(ctx, w, h, t, moodOverride);
+  drawFireflies(ctx, w, h, t);
 
   // 비네트
   const v = ctx.createRadialGradient(w / 2, h / 2, h * 0.32, w / 2, h / 2, h * 0.78);
   v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, "rgba(0,0,0,0.5)");
   ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+}
+
+/* ---------- 대화창 초상화 (절차적 폴백) ---------- */
+// expr: smiling | normal | serious | frowning | sad | surprised
+export function drawLyraPortrait(ctx, w, h, expr = "smiling", time = 0) {
+  const t = time / 1000;
+  ctx.clearRect(0, 0, w, h);
+  // 배경
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, "#2b2b56"); bg.addColorStop(1, "#16142e");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  for (let i = 0; i < 14; i++) {
+    const sx = (i * 53) % w, sy = (i * 91) % (h * 0.7);
+    const a = 0.3 + 0.4 * Math.sin(t * 1.5 + i);
+    ctx.fillStyle = `rgba(220,225,255,${a.toFixed(2)})`;
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  const cx = w * 0.5, cy = h * 0.58, R = Math.min(w, h) * 0.3;
+  const hair = "#cdd0ee", hairSh = "#a7a8d0", skin = "#f3d2b8", skinSh = "#dcae93";
+  const cloak = "#27306a", cloakDk = "#1a1f47", gold = "#e8c887", cloakStar = "#cdd6ff";
+
+  // 어깨/망토
+  ctx.fillStyle = cloak;
+  ctx.beginPath(); ctx.ellipse(cx, h + R * 0.5, R * 1.7, R * 1.3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = gold; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(cx, h + R * 0.5, R * 1.45, R * 1.1, 0, Math.PI, Math.PI * 2); ctx.stroke();
+
+  // 머리카락 뒤
+  ctx.fillStyle = hairSh;
+  ctx.beginPath(); ctx.arc(cx, cy, R * 1.18, Math.PI * 0.05, Math.PI * 0.95); ctx.fill();
+  ctx.fillRect(cx - R * 1.15, cy, R * 0.34, R * 1.4);
+  ctx.fillRect(cx + R * 0.81, cy, R * 0.34, R * 1.4);
+
+  // 후드
+  ctx.fillStyle = cloak;
+  ctx.beginPath(); ctx.arc(cx, cy - R * 0.18, R * 1.3, Math.PI, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = R * 0.18; ctx.strokeStyle = cloakDk;
+  ctx.beginPath(); ctx.arc(cx, cy - R * 0.05, R * 1.16, Math.PI * 1.02, Math.PI * 1.98); ctx.stroke();
+  for (let i = 0; i < 7; i++) {
+    const a = Math.PI * (1.1 + i * 0.12);
+    ctx.fillStyle = cloakStar;
+    ctx.fillRect(cx + Math.cos(a) * R * 1.22, cy - R * 0.05 + Math.sin(a) * R * 1.22, 2, 2);
+  }
+
+  // 얼굴
+  ctx.fillStyle = skin;
+  ctx.beginPath(); ctx.ellipse(cx, cy, R * 0.78, R * 0.9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = skinSh;
+  ctx.beginPath(); ctx.ellipse(cx, cy + R * 0.5, R * 0.78, R * 0.4, 0, 0, Math.PI); ctx.fill();
+
+  // 앞머리
+  ctx.fillStyle = hair;
+  ctx.beginPath(); ctx.arc(cx, cy - R * 0.3, R * 0.82, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+  ctx.fillRect(cx - R * 0.82, cy - R * 0.35, R * 0.3, R * 0.5);
+  ctx.fillRect(cx + R * 0.52, cy - R * 0.35, R * 0.3, R * 0.5);
+  // 별 머리핀
+  star4(ctx, cx - R * 0.55, cy - R * 0.55, R * 0.12, "#ffd76a");
+
+  // 표정
+  drawPortraitFace(ctx, cx, cy, R, expr, t);
+}
+
+function drawPortraitFace(ctx, cx, cy, R, expr, t) {
+  const ex = R * 0.34, ey = cy - R * 0.02, eo = R * 0.18;
+  const ink = "#2a2436", eye = "#4a86c0", eyeHi = "#cdecff";
+  const blink = (Math.sin(t * 0.7) > 0.96) ? 0.2 : 1; // 가끔 깜빡
+
+  function drawEye(x, openY, wide) {
+    const oh = R * (wide ? 0.3 : 0.22) * (expr === "sad" ? 0.85 : 1) * blink;
+    const ow = R * (wide ? 0.2 : 0.17);
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.ellipse(x, openY, ow, oh, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = eye;
+    ctx.beginPath(); ctx.ellipse(x, openY + oh * 0.1, ow * 0.7, oh * 0.78, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#16263a";
+    ctx.beginPath(); ctx.ellipse(x, openY + oh * 0.15, ow * 0.32, oh * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = eyeHi;
+    ctx.fillRect(x - ow * 0.3, openY - oh * 0.3, ow * 0.3, oh * 0.3);
+  }
+
+  if (expr === "sad") {
+    // 처진 눈 + 눈물
+    drawEye(cx - ex, ey + R * 0.04, false); drawEye(cx + ex, ey + R * 0.04, false);
+    ctx.fillStyle = "rgba(150,210,255,0.8)";
+    ctx.beginPath(); ctx.arc(cx - ex - R * 0.08, ey + R * 0.22, R * 0.06, 0, Math.PI * 2); ctx.fill();
+  } else {
+    drawEye(cx - ex, ey, expr === "surprised");
+    drawEye(cx + ex, ey, expr === "surprised");
+  }
+
+  // 눈썹
+  ctx.strokeStyle = "#9a9ad0"; ctx.lineWidth = R * 0.06; ctx.lineCap = "round";
+  const by = ey - R * (expr === "surprised" ? 0.42 : 0.34);
+  if (expr === "serious" || expr === "frowning") {
+    ctx.beginPath();
+    ctx.moveTo(cx - ex - eo, by - R * 0.04); ctx.lineTo(cx - ex + eo, by + R * 0.06);
+    ctx.moveTo(cx + ex + eo, by - R * 0.04); ctx.lineTo(cx + ex - eo, by + R * 0.06);
+    ctx.stroke();
+  }
+
+  // 볼터치
+  if (expr === "smiling" || expr === "surprised") {
+    ctx.fillStyle = "rgba(232,140,150,0.5)";
+    ctx.beginPath(); ctx.ellipse(cx - ex - R * 0.05, ey + R * 0.34, R * 0.13, R * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(cx + ex + R * 0.05, ey + R * 0.34, R * 0.13, R * 0.08, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // 입
+  ctx.strokeStyle = ink; ctx.lineWidth = R * 0.05; ctx.fillStyle = "#a85a5a";
+  const my = cy + R * 0.5;
+  ctx.beginPath();
+  if (expr === "surprised") { ctx.ellipse(cx, my, R * 0.1, R * 0.13, 0, 0, Math.PI * 2); ctx.fill(); }
+  else if (expr === "smiling") { ctx.arc(cx, my - R * 0.05, R * 0.18, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+  else if (expr === "sad" || expr === "frowning") { ctx.arc(cx, my + R * 0.16, R * 0.16, 1.18 * Math.PI, 1.82 * Math.PI); ctx.stroke(); }
+  else { ctx.moveTo(cx - R * 0.1, my); ctx.lineTo(cx + R * 0.1, my); ctx.stroke(); } // normal/serious
 }
 
 /** 업그레이드 미리보기 — 망원경만 */

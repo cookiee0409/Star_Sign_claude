@@ -205,6 +205,53 @@ html, body {
 .dialogue .line { font-size: 16px; line-height: 1.6; color: var(--text); }
 .dialogue .hint { font-size: 12px; color: var(--text-dim); margin-top: 10px; text-align: right; }
 
+/* 초상화 대화창 */
+.dialogue2 {
+  position: absolute;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  width: min(760px, 92vw);
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  cursor: pointer;
+}
+.dlg-portrait-wrap {
+  flex: 0 0 auto;
+  width: 132px; height: 132px;
+  border: 2px solid var(--gold-soft);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #16142e;
+  box-shadow: 0 0 18px rgba(244,213,141,0.25);
+  align-self: flex-end;
+  margin-bottom: -6px;
+}
+.dlg-portrait { width: 100%; height: 100%; image-rendering: auto; display: block; }
+.dlg-body {
+  flex: 1;
+  background: var(--panel);
+  border: 2px solid var(--panel-edge);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-height: 110px;
+  box-shadow: 0 0 24px rgba(0,0,0,0.55);
+}
+.dlg-speaker {
+  color: var(--gold);
+  font-size: 15px;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.dlg-text { font-size: 16px; line-height: 1.7; color: var(--text); min-height: 44px; }
+.dlg-hint {
+  font-size: 11px; color: var(--text-dim);
+  text-align: right; margin-top: 8px;
+  animation: dlgblink 1.2s ease-in-out infinite;
+}
+@keyframes dlgblink { 50% { opacity: 0.35; } }
+
 /* ---------- 망원경(우주) 화면 UI ---------- */
 .space-ui { position: absolute; inset: 0; }
 

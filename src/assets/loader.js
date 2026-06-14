@@ -1,32 +1,66 @@
 /* ============================================================
-   선택적 이미지 에셋 로더
-   - assets/ 폴더에 PNG를 넣으면 해당 그림으로 자동 교체된다.
-   - 파일이 없으면 절차적(픽셀) 렌더링으로 그대로 진행 (graceful fallback).
-   교체 가능 키:
-     bgHill : 어드벤처/메뉴 배경 (언덕·은하수 장면, 아빠 없는 버전 권장)
-     lyra   : 주인공 Lyra 스프라이트 (배경 투명 PNG, 발끝 기준 중앙 정렬)
+   이미지 에셋 로더 (선택)
+   - assets/ 에 PNG를 넣으면 자동 적용, 없으면 절차적 렌더링으로 폴백.
+   - 단일 이미지(getImage) + 가로 스트립 애니메이션(getSprite) 지원.
+   파일 규격은 assets/README.md 참고.
    ============================================================ */
 
-const MANIFEST = {
+// 단일 이미지(배경 · 정지 포즈 · 대화 초상화)
+const IMAGES = {
   bgHill: "assets/bg-hill.png",
-  lyra: "assets/lyra.png",
+  // 정지 포즈
+  front: "assets/lyra/front.png",
+  back: "assets/lyra/back.png",
+  left: "assets/lyra/left.png",
+  right: "assets/lyra/right.png",
+  // 대화 초상화 (표정 6종)
+  "portrait.smiling":   "assets/portraits/smiling.png",
+  "portrait.normal":    "assets/portraits/normal.png",
+  "portrait.serious":   "assets/portraits/serious.png",
+  "portrait.frowning":  "assets/portraits/frowning.png",
+  "portrait.sad":       "assets/portraits/sad.png",
+  "portrait.surprised": "assets/portraits/surprised.png",
+};
+
+// 가로 스트립 애니메이션 (frames = 가로 프레임 수)
+const SPRITES = {
+  idle:      { src: "assets/lyra/idle.png",      frames: 4 },
+  walk:      { src: "assets/lyra/walk.png",      frames: 5 },
+  observe:   { src: "assets/lyra/observe.png",   frames: 5 },
+  absorb:    { src: "assets/lyra/absorb.png",    frames: 4 },
+  surprise:  { src: "assets/lyra/surprise.png",  frames: 4 },
+  discovery: { src: "assets/lyra/discovery.png", frames: 4 },
 };
 
 const images = {};
+const sprites = {};
+
+function loadImage(src, onOk) {
+  const img = new Image();
+  img.onload = () => onOk(img);
+  img.onerror = () => {};
+  img.src = src;
+}
 
 export function preloadAssets() {
-  for (const [key, src] of Object.entries(MANIFEST)) {
-    const img = new Image();
-    img.onload = () => { images[key] = img; };
-    img.onerror = () => { /* 파일 없음 → 절차적 렌더링 사용 */ };
-    img.src = src;
+  for (const [key, src] of Object.entries(IMAGES)) {
+    loadImage(src, (img) => { images[key] = img; });
+  }
+  for (const [key, def] of Object.entries(SPRITES)) {
+    loadImage(def.src, (img) => { sprites[key] = { img, frames: def.frames }; });
   }
 }
 
-/** 로드 완료된 이미지 반환. 없으면 null */
+/** 로드된 단일 이미지 (없으면 null) */
 export function getImage(key) {
   const img = images[key];
   return img && img.complete && img.naturalWidth > 0 ? img : null;
+}
+
+/** 로드된 스프라이트 {img, frames} (없으면 null) */
+export function getSprite(key) {
+  const s = sprites[key];
+  return s && s.img.complete && s.img.naturalWidth > 0 ? s : null;
 }
 
 /** 캔버스에 'cover' 방식으로 가득 채워 그리기 */

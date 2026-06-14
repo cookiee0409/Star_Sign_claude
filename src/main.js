@@ -12,8 +12,10 @@ import {
 } from "./state/gameState.js";
 import { CONSTELLATIONS } from "./data/constellations.js";
 import { SURVEYS, telescopeAppearanceStage } from "./data/upgrades.js";
-import { initScene, drawAdventure } from "./render/pixelArt.js";
+import { initScene, drawAdventure, triggerLyraAnim, setLyraFrozen } from "./render/pixelArt.js";
 import { preloadAssets } from "./assets/loader.js";
+import { runDialogue } from "./ui/dialogue.js";
+import { SCRIPT } from "./data/script.js";
 import { EnergyAbsorb, Meteor, drawLensFrame } from "./render/effects.js";
 import {
   starToRaDec, raDecToStar, angularDistance, pointInPolygon,
@@ -162,28 +164,24 @@ class Game {
     await fadeTransition(() => { stopAmbient(); this.showMenu(); });
   }
 
-  _playIntro() {
-    this._showDialogue([
-      { who: "아버지", txt: "Lyra, 오늘은 특별한 선물이 있단다. 작고 낡았지만… 너에게 꼭 주고 싶었어.", mood: "curious" },
-      { who: "Lyra", txt: "와… 마법 망원경이야! 별가루를 모으는 탐험가가 될 수 있겠어.", mood: "smiling" },
-      { who: "Lyra", txt: "언덕에 올라 밤하늘을 들여다보자. (망원경 보기를 눌러요)", mood: "thinking" },
-    ], () => { this.lyraMood = "smiling"; setFlag("seenIntro", true); });
+  _playIntro() { this._runScript(SCRIPT.intro, () => setFlag("seenIntro", true)); }
+
+  // 표정(초상화) → 배경 캐릭터의 절차적 얼굴 mood 매핑
+  _exprToMood(expr) {
+    if (expr === "surprised") return "curious";
+    if (expr === "serious" || expr === "frowning" || expr === "sad") return "thinking";
+    return "smiling";
   }
 
-  _showDialogue(lines, onDone) {
-    let i = 0;
-    const box = el(".dialogue", {}, [el(".speaker"), el(".line"), el(".hint", { text: "클릭하여 계속 ▸" })]);
-    const render = () => {
-      box.querySelector(".speaker").textContent = lines[i].who;
-      box.querySelector(".line").textContent = lines[i].txt;
-      this.lyraMood = lines[i].mood || "smiling";
-    };
-    box.addEventListener("click", () => {
-      Sfx.click(); i++;
-      if (i >= lines.length) { box.remove(); this.lyraMood = "smiling"; onDone && onDone(); } else render();
+  _runScript(lines, onDone) {
+    setLyraFrozen(true);
+    runDialogue(lines, {
+      onLine: (line) => {
+        this.lyraMood = line.expr ? this._exprToMood(line.expr) : "smiling";
+        if (line.expr === "surprised") triggerLyraAnim("surprise");
+      },
+      onDone: () => { setLyraFrozen(false); this.lyraMood = null; onDone && onDone(); },
     });
-    render();
-    mount(box);
   }
 
   /* ============================================================ 우주(실제 하늘) */
@@ -310,6 +308,8 @@ class Game {
     this.currentHintId = null;
     await fadeTransition(() => { this.screen = "adventure"; this._showLayers(); this._buildAdventureUI(); });
     this._refreshHUD();
+    if (this.pendingLyraAnim) { triggerLyraAnim(this.pendingLyraAnim); this.pendingLyraAnim = null; }
+    if (this.pendingDialogue) { const d = this.pendingDialogue; this.pendingDialogue = null; this._runScript(d); }
   }
 
   /* ---------- 우주 업데이트(감지/판정) ---------- */
@@ -450,9 +450,10 @@ class Game {
 
     openDiscovery(con, gained, { firstBonus: firstThis });
 
+    this.pendingLyraAnim = "discovery";
     if (firstEver) {
       setFlag("firstDiscovery", true);
-      setTimeout(() => toast("망원경: \"…너구나. 드디어 진짜 별을 함께 봤어.\""), 600);
+      this.pendingDialogue = SCRIPT.firstDiscovery;
     }
     advanceNight();
     this._refreshHUD();
