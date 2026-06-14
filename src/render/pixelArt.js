@@ -448,7 +448,7 @@ function drawSceneProps(ctx, w, h, t, stage) {
 function drawLyraWorld(ctx, w, h, t, moodOverride) {
   const groundY = h * 0.84 + 24;
   const cx = lyraCtl.x * w;
-  const targetH = h * 0.52;
+  const targetH = h * 0.26;
   const sprite = lyraCtl.sprite();
   if (sprite) {
     drawSpriteFrame(ctx, sprite, lyraCtl.frameIndex(), cx, groundY, targetH, lyraCtl.facing < 0);
