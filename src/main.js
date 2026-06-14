@@ -13,6 +13,7 @@ import {
 import { CONSTELLATIONS } from "./data/constellations.js";
 import { SURVEYS, telescopeAppearanceStage } from "./data/upgrades.js";
 import { initScene, drawAdventure } from "./render/pixelArt.js";
+import { preloadAssets } from "./assets/loader.js";
 import { EnergyAbsorb, Meteor, drawLensFrame } from "./render/effects.js";
 import {
   starToRaDec, raDecToStar, angularDistance, pointInPolygon,
@@ -50,7 +51,9 @@ class Game {
     this.saveViewTimer = 0;
 
     this.spaceRefs = {};
+    this.lyraMood = "smiling";
 
+    preloadAssets();
     this.resize();
     window.addEventListener("resize", () => this.resize());
     const unlock = () => { unlockAudio(); window.removeEventListener("pointerdown", unlock); };
@@ -99,7 +102,7 @@ class Game {
       if (this.skyReady) this._updateLabels();
     } else {
       const stage = telescopeAppearanceStage(getStats().telescopeLevel);
-      drawAdventure(this.ctx, this.w, this.h, t, stage);
+      drawAdventure(this.ctx, this.w, this.h, t, stage, this.lyraMood);
     }
     requestAnimationFrame((tt) => this.loop(tt));
   }
@@ -113,7 +116,7 @@ class Game {
     const canContinue = hasSave();
     mount(el(".menu", {}, [
       el(".menu-title", { text: "별빛 망원경" }),
-      el(".menu-sub", { text: "· 별 자 리   탐 험 ·" }),
+      el(".menu-sub", { text: "Lyra : The Stardust Gatherer" }),
       el(".menu-buttons", {}, [
         el(".btn.btn-primary", { text: "새 게임", onclick: () => { Sfx.click(); this._startNew(); } }),
         canContinue ? el(".btn", { text: "이어하기", onclick: () => { Sfx.click(); this._continue(); } }) : null,
@@ -161,10 +164,10 @@ class Game {
 
   _playIntro() {
     this._showDialogue([
-      { who: "아버지", txt: "오늘은 특별한 선물이 있단다. 작고 낡았지만… 너에게 꼭 주고 싶었어." },
-      { who: "소녀", txt: "와… 망원경이야! 오늘 밤엔 진짜 별을 볼 수 있겠어." },
-      { who: "소녀", txt: "마당으로 나가 밤하늘을 들여다보자. (망원경 보기를 눌러요)" },
-    ], () => setFlag("seenIntro", true));
+      { who: "아버지", txt: "Lyra, 오늘은 특별한 선물이 있단다. 작고 낡았지만… 너에게 꼭 주고 싶었어.", mood: "curious" },
+      { who: "Lyra", txt: "와… 마법 망원경이야! 별가루를 모으는 탐험가가 될 수 있겠어.", mood: "smiling" },
+      { who: "Lyra", txt: "언덕에 올라 밤하늘을 들여다보자. (망원경 보기를 눌러요)", mood: "thinking" },
+    ], () => { this.lyraMood = "smiling"; setFlag("seenIntro", true); });
   }
 
   _showDialogue(lines, onDone) {
@@ -173,10 +176,11 @@ class Game {
     const render = () => {
       box.querySelector(".speaker").textContent = lines[i].who;
       box.querySelector(".line").textContent = lines[i].txt;
+      this.lyraMood = lines[i].mood || "smiling";
     };
     box.addEventListener("click", () => {
       Sfx.click(); i++;
-      if (i >= lines.length) { box.remove(); onDone && onDone(); } else render();
+      if (i >= lines.length) { box.remove(); this.lyraMood = "smiling"; onDone && onDone(); } else render();
     });
     render();
     mount(box);
