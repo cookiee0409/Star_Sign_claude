@@ -68,9 +68,11 @@ export function startAmbient() {
   });
 
   ambientNodes = { pad, oscs };
+  startMusic();
 }
 
 export function stopAmbient() {
+  stopMusic();
   if (!ambientNodes) return;
   const now = ctx.currentTime;
   ambientNodes.pad.gain.linearRampToValueAtTime(0, now + 1.5);
@@ -83,8 +85,57 @@ export function stopAmbient() {
 
 /** 설정 변경 시 배경음 on/off 동기화 */
 export function syncAmbient() {
-  if (enabled()) { if (!ambientNodes) startAmbient(); }
+  if (enabled()) { if (!ambientNodes) startAmbient(); startMusic(); }
   else stopAmbient();
+}
+
+/* ---------- 멜로디 배경음악 (오르골 느낌, 펜타토닉 자장가) ---------- */
+let musicTimer = null, musicStep = 0;
+// f: 주파수(0=쉼표), d: 박자, g: 음량
+const N = { C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.0, C6: 1046.5, G4: 392.0, A4: 440.0 };
+const MELODY = [
+  { f: N.E5, d: 1, g: 0.11 }, { f: N.G5, d: 1, g: 0.1 }, { f: N.A5, d: 2, g: 0.11 }, { f: N.G5, d: 1, g: 0.09 },
+  { f: N.E5, d: 1, g: 0.1 }, { f: N.D5, d: 1, g: 0.09 }, { f: N.C5, d: 2, g: 0.11 }, { f: 0, d: 1, g: 0 },
+  { f: N.G4, d: 1, g: 0.09 }, { f: N.C5, d: 1, g: 0.1 }, { f: N.E5, d: 1, g: 0.1 }, { f: N.G5, d: 2, g: 0.11 },
+  { f: N.A5, d: 1, g: 0.1 }, { f: N.G5, d: 1, g: 0.09 }, { f: N.E5, d: 2, g: 0.1 }, { f: 0, d: 2, g: 0 },
+];
+
+function bell(freq, dur, gain) {
+  if (!enabled() || !freq) return;
+  ensureCtx();
+  const t0 = ctx.currentTime;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  g.connect(masterGain);
+  // 기음 + 옥타브 배음으로 오르골 같은 맑은 음색
+  [[freq, 1], [freq * 2, 0.35]].forEach(([f, amp]) => {
+    const o = ctx.createOscillator();
+    o.type = "triangle";
+    o.frequency.value = f;
+    const og = ctx.createGain();
+    og.gain.value = amp;
+    o.connect(og); og.connect(g);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  });
+}
+
+export function startMusic() {
+  if (musicTimer || !enabled()) return;
+  ensureCtx();
+  musicStep = 0;
+  const beat = 560; // ms
+  musicTimer = setInterval(() => {
+    if (!enabled()) return;
+    const n = MELODY[musicStep % MELODY.length];
+    if (n.f) bell(n.f, (n.d * beat) / 1000 + 0.5, n.g);
+    musicStep++;
+  }, beat);
+}
+
+export function stopMusic() {
+  if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
 }
 
 /* ---------- 효과음 헬퍼 ---------- */
