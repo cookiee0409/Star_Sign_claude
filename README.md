@@ -43,6 +43,27 @@ node server.mjs      # 또는 npm start
 
 ---
 
+## ☁️ 배포 (GitHub + Vercel)
+
+빌드 단계가 없는 **순수 정적 사이트**라 Vercel 무설정 배포로 충분합니다. (`vercel.json`에 `outputDirectory: "."`)
+
+```bash
+# 1) GitHub에 올리기
+git init && git add -A && git commit -m "init"
+git branch -M main
+git remote add origin https://github.com/<USER>/star-explorer.git
+git push -u origin main
+
+# 2) Vercel 배포 (둘 중 하나)
+#  A. 대시보드: vercel.com → Add New → Project → 위 GitHub 저장소 Import → Deploy
+#  B. CLI:  npm i -g vercel && vercel --prod
+```
+
+> `server.mjs`는 **로컬 개발용**입니다. Vercel은 루트의 정적 파일을 그대로 서빙하므로 별도 빌드/서버 설정이 필요 없습니다.
+> 우주 화면은 런타임에 CDS HiPS 타일을 불러오므로, 배포 후에도 **인터넷 연결**이 필요합니다.
+
+---
+
 ## 🕹️ 플레이 방법
 
 1. **새 게임** → 소녀의 방/마당 장면에서 도입 대사가 흐릅니다.
