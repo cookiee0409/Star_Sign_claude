@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>별빛 망원경 · 별자리 탐험</title>
+  <!-- Aladin Lite v3 (실제 천문 survey 이미지). v3는 CSS를 자체 주입함 -->
+  <script src="https://aladin.cds.unistra.fr/AladinLite/api/v3/latest/aladin.js" charset="utf-8"></script>
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+  <div id="game-root">
+    <!-- 픽셀 어드벤처 / 메뉴 렌더링 캔버스 -->
+    <canvas id="scene-canvas"></canvas>
+
+    <!-- 우주 화면: 실제 하늘 이미지 (Aladin Lite) -->
+    <div id="aladin-lite-div" class="hidden"></div>
+
+    <!-- 우주 화면 위 효과(렌즈 테두리 · 별에너지 흡수 파티클) -->
+    <canvas id="fx-canvas" class="hidden"></canvas>
+
+    <!-- 별자리 이름 라벨 레이어 (하늘 위에 떠다님) -->
+    <div id="label-layer" class="hidden"></div>
+
+    <!-- DOM 기반 UI 오버레이 -->
+    <div id="ui-root"></div>
+
+    <!-- 상단 HUD -->
+    <div id="hud" class="hud hidden">
+      <div class="hud-energy">
+        <span class="energy-icon">✦</span>
+        <span id="hud-energy-value">0</span>
+        <span class="energy-label">별에너지</span>
+      </div>
+      <div class="hud-night">밤 <span id="hud-night-value">1</span></div>
+      <div class="hud-telescope">망원경 Lv.<span id="hud-tel-value">1</span></div>
+    </div>
+
+    <!-- 화면 전환 페이드 -->
+    <div id="fade" class="fade"></div>
+
+    <!-- 토스트 -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

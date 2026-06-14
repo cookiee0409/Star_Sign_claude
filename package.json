@@ -1,0 +1,13 @@
+{
+  "name": "star-explorer",
+  "version": "0.1.0",
+  "description": "별빛 망원경 · 별자리 탐험 — 웹 기반 2D 픽셀 어드벤처 + 우주 시뮬레이션 게임",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
