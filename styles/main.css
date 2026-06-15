@@ -375,6 +375,7 @@ html, body {
 .space-ui .coord-panel,
 .space-ui .space-topright,
 .space-ui .survey-panel,
+.space-ui .focus-panel,
 .space-ui .space-bottom {
   pointer-events: auto;
 }
@@ -404,6 +405,24 @@ html, body {
 }
 .coord-row input:focus { outline: none; border-color: var(--energy); }
 .coord-note { font-size: 11px; color: var(--text-dim); margin: 4px 0 10px; line-height: 1.5; }
+.target-hint {
+  background: rgba(244,213,141,0.08);
+  border: 1px solid rgba(244,213,141,0.24);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 8px 0 10px;
+  line-height: 1.5;
+}
+.target-hint b {
+  display: block;
+  color: var(--gold);
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+.target-hint span {
+  color: var(--text);
+  font-size: 11px;
+}
 
 .coord-real {
   font-size: 11px;
@@ -502,6 +521,77 @@ html, body {
   color: var(--text-dim);
 }
 .pos-readout b { color: var(--energy); }
+
+.condition-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: 10px 12px;
+  width: 198px;
+  font-size: 12px;
+}
+.condition-panel h4 {
+  color: var(--gold);
+  font-size: 12px;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.condition-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-dim);
+  line-height: 1.8;
+}
+.condition-row b {
+  color: var(--gold-soft);
+  font-weight: normal;
+}
+
+.focus-panel {
+  position: absolute;
+  right: 18px;
+  bottom: 86px;
+  width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--energy);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 0 18px rgba(143,211,255,0.18);
+}
+.focus-panel h4 {
+  color: var(--energy);
+  font-size: 13px;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+.focus-note,
+.focus-msg {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.focus-panel input[type=range] {
+  width: 100%;
+  margin: 10px 0 8px;
+}
+.focus-meter {
+  height: 10px;
+  background: rgba(8,7,20,0.9);
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 7px;
+}
+.focus-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--energy-deep), var(--gold));
+  box-shadow: 0 0 10px var(--energy);
+  transition: width .12s linear;
+}
+.focus-msg.ok { color: var(--energy); }
+.focus-panel .btn { width: 100%; margin-top: 10px; }
 
 .space-bottom {
   position: absolute;
@@ -604,6 +694,89 @@ html, body {
 .collection-card .cname { font-size: 13px; color: var(--text); }
 .collection-card.locked .cname { color: var(--text-dim); }
 .collection-card .crarity { font-size: 10px; letter-spacing: 1px; margin-top: 3px; }
+
+.modal-section-title {
+  color: var(--gold-soft);
+  font-size: 15px;
+  margin: 20px 0 10px;
+  letter-spacing: 1px;
+}
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.log-item {
+  position: relative;
+  background: rgba(10,9,26,0.72);
+  border: 1px solid rgba(143,211,255,0.18);
+  border-radius: 8px;
+  padding: 10px 68px 10px 12px;
+}
+.log-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.log-title span,
+.log-meta,
+.log-note {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.log-meta b { color: var(--gold-soft); font-weight: normal; }
+.log-note { color: var(--text); margin-top: 3px; }
+.log-energy {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  color: var(--energy);
+  text-shadow: 0 0 8px var(--energy);
+  font-size: 13px;
+}
+.empty-note {
+  color: var(--text-dim);
+  font-size: 12px;
+  border: 1px dashed rgba(150,140,200,0.22);
+  border-radius: 8px;
+  padding: 14px;
+}
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.badge-card {
+  background: rgba(10,9,26,0.68);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: 11px;
+  min-height: 86px;
+}
+.badge-card.earned {
+  border-color: rgba(244,213,141,0.55);
+  box-shadow: 0 0 14px rgba(244,213,141,0.12);
+}
+.badge-card.locked { opacity: 0.52; }
+.badge-mark {
+  color: var(--gold);
+  font-size: 17px;
+  margin-bottom: 5px;
+}
+.badge-name {
+  color: var(--text);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.badge-desc {
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 1.5;
+}
 
 /* 설정 */
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(150,140,200,0.12); }

@@ -9,6 +9,7 @@
 import {
   getState, getStats, load, hasSave, newGame, isDiscovered,
   addEnergy, markDiscovered, setFlag, setLastView, advanceNight, setSurvey,
+  getSkyCondition, conditionDetails, conditionSummary, addObservationLog,
 } from "./state/gameState.js";
 import { CONSTELLATIONS } from "./data/constellations.js";
 import { SURVEYS, telescopeAppearanceStage } from "./data/upgrades.js";
@@ -266,13 +267,37 @@ class Game {
     const detectFill = el(".detect-fill");
     const detectPct = el("span", { text: "0%" });
     const detectMsg = el(".detect-msg.dim", { text: "별자리 영역을 탐색하세요" });
-    const observeBtn = el(".btn.btn-primary", { text: "관측 시작", disabled: "true", onclick: () => this._tryObserve() });
+    const observeBtn = el(".btn.btn-primary", { text: "초점 조절", disabled: "true", onclick: () => this._tryObserve() });
+    const condition = getSkyCondition();
+    const conditionPanel = el(".condition-panel", {}, [
+      el("h4", { text: "오늘 밤 하늘 상태" }),
+      ...conditionDetails(condition).map(([k, v]) => el(".condition-row", {}, [el("span", { text: k }), el("b", { text: v })])),
+    ]);
+    const targetHint = this._nextTargetHint(stats);
+
+    const focusRange = el("input", { type: "range", min: "0", max: "100", value: "50" });
+    const focusFill = el(".focus-fill");
+    const focusMsg = el(".focus-msg", { text: "좌표 공명이 충분할 때 초점을 맞출 수 있습니다." });
+    const focusLockBtn = el(".btn.btn-small.btn-primary", { text: "초점 고정", disabled: "true", onclick: () => this._lockFocus() });
+    const focusPanel = el(".focus-panel.hidden", {}, [
+      el("h4", { text: "초점 조절" }),
+      el(".focus-note", { text: "별들이 가장 또렷해지는 지점에 렌즈를 맞추세요." }),
+      focusRange,
+      el(".focus-meter", {}, [focusFill]),
+      focusMsg,
+      focusLockBtn,
+    ]);
+    focusRange.addEventListener("input", () => this._updateFocusPanel());
 
     const coordPanel = el(".coord-panel", {}, [
       el("h3", { text: "◈ 별빛 좌표 입력" }),
       el(".coord-row", {}, [el("label", { text: "별빛 X" }), inX]),
       el(".coord-row", {}, [el("label", { text: "별빛 Y" }), inY]),
       el(".coord-note", { html: "X·Y(0~1000)는 실제 적경·적위로 환산됩니다.<br>화면을 드래그/휠로 탐색할 수도 있어요." }),
+      el(".target-hint", {}, [
+        el("b", { text: targetHint.title }),
+        el("span", { text: targetHint.body }),
+      ]),
       el(".btn.btn-small", { text: "▶ 좌표로 이동", onclick: go, style: { width: "100%" } }),
       realReadout,
       el(".detect-wrap", {}, [
@@ -288,6 +313,7 @@ class Game {
         el(".btn.zoom-btn", { text: "−", onclick: () => this._zoom(1.6) }),
       ]),
       el(".pos-readout", {}, [document.createTextNode("FOV "), el("b", { id: "fov-readout", text: "—" }), document.createTextNode("°")]),
+      conditionPanel,
     ]);
 
     // 파장(survey) 선택
@@ -307,13 +333,27 @@ class Game {
       el(".btn.btn-ghost", { text: "◂ 망원경에서 눈 떼기", onclick: () => { Sfx.click(); this._exitSpace(); } }),
     ]);
 
-    mount(el(".space-ui", {}, [coordPanel, topRight, surveyPanel, bottom]));
-    this.spaceRefs = { inX, inY, realReadout, detectFill, detectPct, detectMsg, observeBtn };
+    mount(el(".space-ui", {}, [coordPanel, topRight, surveyPanel, focusPanel, bottom]));
+    this.spaceRefs = {
+      inX, inY, realReadout, detectFill, detectPct, detectMsg, observeBtn,
+      focusPanel, focusRange, focusFill, focusMsg, focusLockBtn,
+    };
     this._markSurvey(getState().survey || "P/DSS2/color");
   }
 
   _markSurvey(id) {
     for (const o of this.surveyOpts || []) o.el.classList.toggle("active", o.id === id && o.unlocked);
+  }
+
+  _nextTargetHint(stats) {
+    const target = CONSTELLATIONS.find((c) => !isDiscovered(c.id) && c.requiredLevel <= stats.telescopeLevel)
+      || CONSTELLATIONS.find((c) => !isDiscovered(c.id));
+    if (!target) return { title: "별지도 단서", body: "대표 별자리 관측을 모두 마쳤습니다." };
+    const locked = target.requiredLevel > stats.telescopeLevel;
+    return {
+      title: locked ? "잠긴 별지도 단서" : "다음 별지도 단서",
+      body: `${target.name}: ${(target.hints || [target.description]).join(" · ")}${locked ? ` · 망원경 Lv.${target.requiredLevel} 필요` : ""}`,
+    };
   }
 
   _zoom(factor) {
@@ -381,6 +421,7 @@ class Game {
     if (!inside || isDiscovered(inside.id)) {
       this._clearHint();
       this.detection = { targetId: null, gauge: 0, locked: false };
+      this._hideFocusPanel();
       this._setGauge(0, inside && isDiscovered(inside.id)
         ? `이미 발견한 별자리: ${inside.name}` : "별자리 영역을 탐색하세요", "dim");
       return;
@@ -390,6 +431,7 @@ class Game {
     if (inside.requiredLevel > stats.telescopeLevel) {
       this._clearHint();
       this.detection = { targetId: null, gauge: 0, locked: false };
+      this._hideFocusPanel();
       this._setGauge(0, `『${inside.name}』 영역 — 망원경 레벨 ${inside.requiredLevel} 필요`, "warn");
       return;
     }
@@ -401,12 +443,22 @@ class Game {
       this._ensureHintLabel(inside);
       Sfx.detect();
     }
-    const gauge = clamp(1 - insideDist / stats.detectRadiusDeg, 0, 1);
+    const condition = getSkyCondition();
+    const effectiveRadius = Math.max(1, stats.detectRadiusDeg * condition.resonanceMultiplier);
+    const gauge = clamp(1 - insideDist / effectiveRadius, 0, 1);
     const locked = insideDist < stats.lockRadiusDeg;
-    this.detection = { targetId: inside.id, gauge, locked };
-    if (locked) this._setGauge(gauge, `『${inside.name}』 관측 준비 완료 — 관측 시작!`, "ok");
-    else this._setGauge(gauge, `『${inside.name}』 영역 — 중심으로 더 가까이 (${insideDist.toFixed(1)}°)`, "ok");
+    this.detection = { targetId: inside.id, gauge, locked, distDeg: insideDist };
+    if (!locked) this._hideFocusPanel();
+    if (locked) this._setGauge(gauge, `『${inside.name}』 별들이 선처럼 이어지려 합니다 — 초점 조절!`, "ok");
+    else this._setGauge(gauge, this._resonanceMessage(inside, gauge, insideDist), "ok");
     if (Math.random() < 0.04 && gauge > 0.4) Sfx.twinkle();
+  }
+
+  _resonanceMessage(con, gauge, dist) {
+    if (gauge < 0.2) return "망원경이 조용합니다.";
+    if (gauge < 0.5) return `렌즈에 희미한 별빛이 스칩니다 — ${con.name}까지 ${dist.toFixed(1)}°`;
+    if (gauge < 0.8) return `별빛 공명이 강해집니다 — ${con.name} 중심 근처`;
+    return `별자리 흔적이 보입니다 — ${dist.toFixed(1)}° 안쪽으로 더 정밀하게`;
   }
 
   _setGauge(g, msg, cls) {
@@ -433,6 +485,48 @@ class Game {
     if (this.sequence || !this.detection.locked) return;
     const con = CONSTELLATIONS.find((c) => c.id === this.detection.targetId);
     if (!con) return;
+    this._startFocusMiniGame(con);
+  }
+
+  _startFocusMiniGame(con) {
+    const stats = getStats();
+    const condition = getSkyCondition();
+    const target = Math.round((Math.sin((getState().night + con.center.ra) * 1.73) * 0.5 + 0.5) * 70 + 15);
+    const tolerance = clamp(8 + (stats.telescopeLevel - 1) * 0.7 + condition.focusBonus, 5, 20);
+    this.focusState = { con, target, tolerance };
+    const r = this.spaceRefs;
+    r.focusPanel.classList.remove("hidden");
+    r.focusRange.value = "50";
+    Sfx.click();
+    this._updateFocusPanel();
+  }
+
+  _hideFocusPanel() {
+    if (this.spaceRefs?.focusPanel) this.spaceRefs.focusPanel.classList.add("hidden");
+    this.focusState = null;
+  }
+
+  _updateFocusPanel() {
+    if (!this.focusState || !this.spaceRefs?.focusRange) return;
+    const r = this.spaceRefs;
+    const value = parseFloat(r.focusRange.value);
+    const diff = Math.abs(value - this.focusState.target);
+    const clarity = clamp(1 - diff / (this.focusState.tolerance * 3), 0, 1);
+    const locked = diff <= this.focusState.tolerance;
+    r.focusFill.style.width = `${Math.round(clarity * 100)}%`;
+    r.focusLockBtn.disabled = locked ? null : "true";
+    r.focusMsg.textContent = locked
+      ? "초점이 맞았습니다. 별자리의 형태가 드러납니다."
+      : clarity > 0.55 ? "흐릿한 별들이 선명해지고 있습니다." : "별빛이 아직 흐릿합니다.";
+    r.focusMsg.className = `focus-msg ${locked ? "ok" : ""}`;
+  }
+
+  _lockFocus() {
+    if (!this.focusState) return;
+    const value = parseFloat(this.spaceRefs.focusRange.value);
+    if (Math.abs(value - this.focusState.target) > this.focusState.tolerance) return;
+    const con = this.focusState.con;
+    this._hideFocusPanel();
     Sfx.discover();
     this.spaceRefs.observeBtn.disabled = true;
     this.sequence = { phase: "connect", timer: 0, con };
@@ -466,9 +560,27 @@ class Game {
     const firstEver = !getState().flags.firstDiscovery;
     const firstThis = !isDiscovered(con.id);
     const [ra, dec] = Sky.getRaDec();
-    const gained = con.energyReward + (firstThis ? Math.round(con.energyReward * 0.2) : 0);
+    const condition = getSkyCondition();
+    const errorDeg = angularDistance(ra, dec, con.center.ra, con.center.dec);
+    const baseReward = Math.round(con.energyReward * condition.rewardMultiplier);
+    const gained = baseReward + (firstThis ? Math.round(baseReward * 0.2) : 0);
 
     markDiscovered(con.id, ra, dec);
+    const logResult = addObservationLog({
+      targetId: con.id,
+      targetName: con.name,
+      ra,
+      dec,
+      targetRa: con.center.ra,
+      targetDec: con.center.dec,
+      errorDeg,
+      night: getState().night,
+      telescopeLevel: getStats().telescopeLevel,
+      condition,
+      skyCondition: conditionSummary(condition),
+      energyGained: gained,
+      note: `${con.name}의 별빛 선이 ${errorDeg.toFixed(1)}° 오차 안에서 이어졌다.`,
+    });
     addEnergy(gained);
     this._clearHint();
     this._buildLabels();
@@ -476,6 +588,9 @@ class Game {
     this._refreshHUD();
 
     openDiscovery(con, gained, { firstBonus: firstThis });
+    if (logResult.earned.length) {
+      toast(`새 배지 획득: ${logResult.earned.length}개`, 2200);
+    }
 
     this.pendingHappy = true;
     if (firstEver) {

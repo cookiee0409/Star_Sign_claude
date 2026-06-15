@@ -6,6 +6,7 @@ import { el, openModal, toast, updateHUD } from "./dom.js";
 import {
   getState, getStats, isDiscovered, discoveredCount,
   spendEnergy, applyUpgrade, setSetting, resetSave,
+  BADGES,
 } from "../state/gameState.js";
 import { CONSTELLATIONS, RARITY_INFO } from "../data/constellations.js";
 import { UPGRADES, upgradeCost, telescopeAppearanceStage, APPEARANCE_NAMES } from "../data/upgrades.js";
@@ -186,8 +187,9 @@ export function openCollection() {
   const grid = el(".collection-grid");
   const total = CONSTELLATIONS.length;
   const found = discoveredCount();
+  const st = getState();
   const progress = el(".collection-progress", {
-    html: `발견한 별자리 <b>${found}</b> / ${total} &nbsp;·&nbsp; 진행률 <b>${Math.round((found / total) * 100)}%</b>`,
+    html: `발견한 별자리 <b>${found}</b> / ${total} &nbsp;·&nbsp; 관측 로그 <b>${st.observationLogs.length}</b>개 &nbsp;·&nbsp; 진행률 <b>${Math.round((found / total) * 100)}%</b>`,
   });
 
   for (const con of CONSTELLATIONS) {
@@ -207,13 +209,47 @@ export function openCollection() {
     drawConstellationThumb(thumb, con, { discovered: found });
   }
 
+  const logs = el(".log-list");
+  for (const log of st.observationLogs.slice(0, 8)) {
+    logs.appendChild(el(".log-item", {}, [
+      el(".log-title", {}, [
+        el("b", { text: log.targetName }),
+        el("span", { text: `밤 ${log.night} · Lv.${log.telescopeLevel}` }),
+      ]),
+      el(".log-meta", {
+        html: `RA <b>${formatRA(log.ra)}</b> · Dec <b>${formatDec(log.dec)}</b> · 오차 <b>${(log.errorDeg ?? 0).toFixed(1)}°</b>`,
+      }),
+      el(".log-meta", { text: log.skyCondition || "" }),
+      el(".log-note", { text: log.note || "" }),
+      el(".log-energy", { text: `✦ ${log.energyGained || 0}` }),
+    ]));
+  }
+  if (!st.observationLogs.length) {
+    logs.appendChild(el(".empty-note", { text: "아직 작성된 관측 로그가 없습니다." }));
+  }
+
+  const badgeGrid = el(".badge-grid");
+  for (const badge of BADGES) {
+    const earned = !!st.badges[badge.id];
+    badgeGrid.appendChild(el(`.badge-card${earned ? ".earned" : ".locked"}`, {}, [
+      el(".badge-mark", { text: earned ? "★" : "☆" }),
+      el(".badge-name", { text: badge.name }),
+      el(".badge-desc", { text: badge.desc }),
+    ]));
+  }
+
   const content = el(".modal", {}, [
     el(".modal-header", {}, [
-      el("h2", { text: "✦ 별자리 컬렉션" }),
+      el("h2", { text: "✦ 관측 일지" }),
       el(".btn.btn-small.btn-ghost.modal-close", { text: "닫기", onclick: () => { Sfx.click(); close(); } }),
     ]),
     progress,
+    el("h3.modal-section-title", { text: "발견한 별자리" }),
     grid,
+    el("h3.modal-section-title", { text: "관측 로그" }),
+    logs,
+    el("h3.modal-section-title", { text: "관측 배지" }),
+    badgeGrid,
   ]);
   const close = openModal(content);
 }

@@ -26,6 +26,7 @@ export const CONSTELLATIONS = [
     story: "“가장 먼저 너에게 보여주고 싶었어. 사냥꾼의 별, 오리온이야.”",
     rarity: "rare", requiredLevel: 1, energyReward: 120,
     center: { ra: 83.98, dec: -1.07 },
+    hints: ["겨울 하늘의 남쪽 근처에서 빛나는 사냥꾼", "시간축은 5와 6 사이", "하늘높이는 0보다 조금 아래"],
     boundary: [[70.8, -11], [96.5, -11], [96.5, 23], [70.8, 23]],
     stars: [
       { name: "베텔게우스", ra: 88.793, dec: 7.407 },
@@ -44,6 +45,7 @@ export const CONSTELLATIONS = [
     story: "“북두칠성을 따라가면 길을 잃지 않아. 오래된 여행자의 약속이지.”",
     rarity: "common", requiredLevel: 1, energyReward: 90,
     center: { ra: 185.0, dec: 55.6 },
+    hints: ["북쪽 하늘의 국자 모양 일곱 별", "시간축은 12 근처", "하늘높이는 매우 높다"],
     boundary: [[122, 29], [217, 29], [217, 73], [122, 73]],
     stars: [
       { name: "두베", ra: 165.932, dec: 61.751 },
@@ -62,6 +64,7 @@ export const CONSTELLATIONS = [
     story: "“하늘에 새겨진 W. 어떤 밤에도 북쪽을 알려주는 표식이야.”",
     rarity: "rare", requiredLevel: 2, energyReward: 150,
     center: { ra: 15.33, dec: 60.06 },
+    hints: ["북쪽 하늘에 새겨진 W 모양", "시간축은 0과 1 사이", "하늘높이는 아주 높다"],
     // 적경 0h를 가로지름 (deltaRA 기반 판정으로 안전 처리)
     boundary: [[344.5, 46], [51.3, 46], [51.3, 77], [344.5, 77]],
     stars: [
@@ -79,6 +82,7 @@ export const CONSTELLATIONS = [
     story: "“은하수 위를 나는 백조. 가장 깊은 밤에 가장 빛나지.”",
     rarity: "ancient", requiredLevel: 3, energyReward: 200,
     center: { ra: 303.28, dec: 38.52 },
+    hints: ["여름 은하수를 가로지르는 북쪽 십자가", "시간축은 20 근처", "하늘높이는 중간보다 높다"],
     boundary: [[287, 27], [330.7, 27], [330.7, 61], [287, 61]],
     stars: [
       { name: "데네브", ra: 310.358, dec: 45.280 },
@@ -95,6 +99,7 @@ export const CONSTELLATIONS = [
     story: "“봄을 데려오는 사자. 갈기를 닮은 낫이 보이니?”",
     rarity: "ancient", requiredLevel: 3, energyReward: 220,
     center: { ra: 157.79, dec: 19.14 },
+    hints: ["봄을 알리는 사자의 낫 모양", "시간축은 10과 11 사이", "하늘높이는 조금 높다"],
     boundary: [[140.5, -6], [179.5, -6], [179.5, 33], [140.5, 33]],
     stars: [
       { name: "레굴루스", ra: 152.093, dec: 11.967 },
