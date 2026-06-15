@@ -55,6 +55,16 @@ export function getRaDec() { return aladin ? aladin.getRaDec() : [0, 0]; }
 export function getFov() { return aladin ? aladin.getFov()[0] : 60; }
 export function setSurvey(id) { if (aladin) aladin.setImageSurvey(id); }
 
+export function panBy(dx, dy) {
+  if (!aladin) return;
+  const [ra, dec] = getRaDec();
+  const fov = getFov();
+  const nextDec = Math.max(-89.9, Math.min(89.9, dec + dy * fov));
+  const decScale = Math.max(0.18, Math.cos((nextDec * Math.PI) / 180));
+  const nextRa = (ra + (dx * fov) / decScale + 360) % 360;
+  gotoRaDec(nextRa, nextDec);
+}
+
 /** 월드(ra,dec) → 화면 픽셀 [x,y] (보이지 않으면 null) */
 export function world2pix(ra, dec) {
   if (!aladin) return null;

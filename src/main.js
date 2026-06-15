@@ -17,7 +17,7 @@ import { preloadAssets } from "./assets/loader.js";
 import { CharacterView } from "./ui/character.js";
 import { runDialogue } from "./ui/dialogue.js";
 import { SCRIPT } from "./data/script.js";
-import { EnergyAbsorb, Meteor, drawLensFrame } from "./render/effects.js";
+import { EnergyAbsorb, Meteor } from "./render/effects.js";
 import {
   starToRaDec, raDecToStar, angularDistance, pointInPolygon,
   formatRA, formatDec, clamp,
@@ -61,6 +61,7 @@ class Game {
     window.addEventListener("resize", () => this.resize());
     const unlock = () => { unlockAudio(); window.removeEventListener("pointerdown", unlock); };
     window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", (e) => this._handleKeyNav(e));
     requestAnimationFrame((t) => this.loop(t));
   }
 
@@ -99,7 +100,6 @@ class Game {
     if (this.screen === "space") {
       this.fxCtx.clearRect(0, 0, this.w, this.h);
       if (this.skyReady) this._updateSpace(dt);
-      drawLensFrame(this.fxCtx, this.w, this.h, t);
       this._drawMeteors(dt);
       this.energy.update(dt);
       this.energy.draw(this.fxCtx);
@@ -154,6 +154,16 @@ class Game {
   _refreshHUD() {
     const st = getState(), stats = getStats();
     updateHUD({ energy: st.starEnergy, night: st.night, telescopeLevel: stats.telescopeLevel });
+  }
+
+  _handleKeyNav(e) {
+    if (this.screen !== "space" || !this.skyReady) return;
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const step = e.shiftKey ? 0.2 : 0.08;
+    if (e.key === "ArrowLeft") { Sky.panBy(-step, 0); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { Sky.panBy(step, 0); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { Sky.panBy(0, step); e.preventDefault(); }
+    else if (e.key === "ArrowDown") { Sky.panBy(0, -step); e.preventDefault(); }
   }
 
   /* ============================================================ 어드벤처 */
@@ -233,11 +243,18 @@ class Game {
 
     const inX = el("input", { type: "number", min: "0", max: "1000" });
     const inY = el("input", { type: "number", min: "0", max: "1000" });
-    [inX, inY].forEach((i) => i.addEventListener("input", () => Sfx.coordType()));
+    this.coordInputDirty = false;
+    this.coordHoldUntil = 0;
+    [inX, inY].forEach((i) => i.addEventListener("input", () => {
+      this.coordInputDirty = true;
+      Sfx.coordType();
+    }));
     const go = () => {
       const sx = clamp(parseFloat(inX.value) || 0, 0, 1000);
       const sy = clamp(parseFloat(inY.value) || 0, 0, 1000);
       const { ra, dec } = starToRaDec(sx, sy);
+      this.coordInputDirty = false;
+      this.coordHoldUntil = performance.now() + 900;
       Sky.gotoRaDec(ra, dec);
       Sfx.move();
     };
@@ -339,8 +356,9 @@ class Game {
       r.realReadout.innerHTML =
         `별빛 좌표  X <b>${sx}</b>  Y <b>${sy}</b><br>RA <b>${formatRA(ra)}</b>  Dec <b>${formatDec(dec)}</b>`;
     }
-    if (document.activeElement !== r.inX) r.inX.value = sx;
-    if (document.activeElement !== r.inY) r.inY.value = sy;
+    const holdCoordInputs = this.coordInputDirty || performance.now() < (this.coordHoldUntil || 0);
+    if (!holdCoordInputs && document.activeElement !== r.inX) r.inX.value = sx;
+    if (!holdCoordInputs && document.activeElement !== r.inY) r.inY.value = sy;
     const fovEl = document.getElementById("fov-readout");
     if (fovEl) fovEl.textContent = fov >= 1 ? fov.toFixed(1) : fov.toFixed(2);
 
